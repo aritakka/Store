@@ -46,4 +46,10 @@
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
+
 </html>
+<nav>
+    <a asp-controller="Home" asp-action="Index">Home</a>
+    <a asp-controller="Users" asp-action="Register">Register</a>
+    <a asp-controller="Users" asp-action="Login">Login</a>
+</nav>
