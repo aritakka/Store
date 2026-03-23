@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+
 namespace Store.Models
 {
     public class RegisterViewModel
@@ -14,9 +15,9 @@ namespace Store.Models
         [DataType(DataType.Password)]
         public string Password { get; set; }
 
+        [Required]
         [DataType(DataType.Password)]
-        [Display(Name = "Подтверждение пароля")]
-        [Compare("Password", ErrorMessage = "Пароли не совпадают.")]
+        [Compare(nameof(Password))]
         public string ConfirmPassword { get; set; }
     }
 }

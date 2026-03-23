@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Store.Data;
+using Store.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,10 +18,12 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.LoginPath = "/Users/Login";
         options.LogoutPath = "/Users/Logout";
         options.Cookie.HttpOnly = true;
+        options.ExpireTimeSpan = TimeSpan.FromDays(14);
+        options.SlidingExpiration = true;
     });
 
-// Password hasher (use Identity's implementation)
-builder.Services.AddSingleton<IPasswordHasher<string>, PasswordHasher<string>>();
+// Use IPasswordHasher<User>
+builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
 var app = builder.Build();
 
@@ -34,7 +37,6 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 
-// Authentication MUST be before Authorization
 app.UseAuthentication();
 app.UseAuthorization();
 

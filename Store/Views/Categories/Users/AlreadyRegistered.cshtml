@@ -1,0 +1,10 @@
+﻿@{
+    ViewData["Title"] = "Вы уже зарегистрированы";
+}
+<h2>Вы уже зарегистрированы</h2>
+<p>Вы уже вошли как @User.Identity.Name</p>
+<form asp-action="Logout" method="post">
+    @Html.AntiForgeryToken()
+    <button type="submit" class="btn btn-primary">Выйти</button>
+</form>
+<a asp-controller="Home" asp-action="Index" class="btn btn-link">На главную</a>

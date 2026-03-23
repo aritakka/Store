@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Store.Data;
 using Store.Models;
 using System.Security.Claims;
@@ -9,78 +10,106 @@ using System.Security.Claims;
 public class UsersController : Controller
 {
     private readonly ApplicationDbContext _context;
-    private readonly IPasswordHasher<string> _passwordHasher;
+    private readonly IPasswordHasher<User> _passwordHasher;
 
-    public UsersController(ApplicationDbContext context, IPasswordHasher<string> passwordHasher)
+    public UsersController(ApplicationDbContext context, IPasswordHasher<User> passwordHasher)
     {
         _context = context;
         _passwordHasher = passwordHasher;
     }
 
-    // existing actions (Index, Create, etc.) remain...
+    [HttpGet]
+    public IActionResult Index()
+    {
+        var users = _context.Users.Include(u => u.Role).ToList();
+        return View(users);
+    }
+
+    [HttpGet]
+    public IActionResult Create() => View(new User());
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(User user)
+    {
+        if (!ModelState.IsValid) return View(user);
+
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+        return RedirectToAction(nameof(Index));
+    }
 
     [HttpGet]
     public IActionResult Register() => View(new RegisterViewModel());
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult Register(RegisterViewModel model)
+    public async Task<IActionResult> Register(RegisterViewModel model)
     {
         if (!ModelState.IsValid) return View(model);
 
-        if (_context.Users.Any(u => u.UserName == model.UserName))
+        if (await _context.Users.AnyAsync(u => u.UserName == model.UserName))
         {
             ModelState.AddModelError(nameof(model.UserName), "Имя пользователя уже занято.");
             return View(model);
         }
-        if (_context.Users.Any(u => u.Email == model.Email))
+        if (await _context.Users.AnyAsync(u => u.Email == model.Email))
         {
             ModelState.AddModelError(nameof(model.Email), "Email уже зарегистрирован.");
             return View(model);
         }
 
+        var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "Customer");
         var user = new User
         {
             UserName = model.UserName,
             Email = model.Email,
-            PasswordHash = _passwordHasher.HashPassword(null, model.Password),
-            RoleId = _context.Roles.FirstOrDefault(r => r.Name == "Customer")?.Id
+            RoleId = role?.Id
         };
 
-        _context.Users.Add(user);
-        _context.SaveChanges();
+        user.PasswordHash = _passwordHasher.HashPassword(user, model.Password);
 
-        // Sign in
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+
         var claims = new List<Claim>
         {
             new Claim(ClaimTypes.Name, user.UserName),
             new Claim("UserId", user.Id.ToString()),
-            new Claim(ClaimTypes.Role, user.Role?.Name ?? "Customer")
+            new Claim(ClaimTypes.Role, role?.Name ?? "Customer")
         };
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-        HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity)).Wait();
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
 
         return RedirectToAction("Index", "Home");
     }
 
     [HttpGet]
-    public IActionResult Login(string returnUrl = null) => View(new LoginViewModel { ReturnUrl = returnUrl });
+    public IActionResult Login(string returnUrl = null)
+    {
+        if (User?.Identity?.IsAuthenticated == true)
+            return RedirectToAction(nameof(AlreadyRegistered));
+
+        return View(new LoginViewModel { ReturnUrl = returnUrl });
+    }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult Login(LoginViewModel model)
+    public async Task<IActionResult> Login(LoginViewModel model)
     {
         if (!ModelState.IsValid) return View(model);
 
-        var user = _context.Users.SingleOrDefault(u => u.UserName == model.UserName || u.Email == model.UserName);
+        var user = await _context.Users.Include(u => u.Role)
+            .SingleOrDefaultAsync(u => u.UserName == model.UserName || u.Email == model.UserName);
+
         if (user == null)
         {
             ModelState.AddModelError("", "Неверное имя пользователя или пароль.");
             return View(model);
         }
 
-        var result = _passwordHasher.VerifyHashedPassword(null, user.PasswordHash, model.Password);
-        if (result == PasswordVerificationResult.Failed)
+        var verify = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, model.Password);
+        if (verify == PasswordVerificationResult.Failed)
         {
             ModelState.AddModelError("", "Неверное имя пользователя или пароль.");
             return View(model);
@@ -93,7 +122,7 @@ public class UsersController : Controller
             new Claim(ClaimTypes.Role, user.Role?.Name ?? "Customer")
         };
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-        HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity)).Wait();
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
 
         if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
             return Redirect(model.ReturnUrl);
@@ -103,9 +132,17 @@ public class UsersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult Logout()
+    public async Task<IActionResult> Logout()
     {
-        HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme).Wait();
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return RedirectToAction("Index", "Home");
     }
+
+    [HttpGet]
+    public IActionResult AlreadyRegistered()
+    {
+        return View();
+    }
+
+    // Additional scaffolded actions (Edit, Details, Delete) can be kept as before or added here.
 }

@@ -1,16 +1,21 @@
-﻿using Store.Models;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
+
 namespace Store.Models
 {
     public class User
     {
         [Key]
         public int Id { get; set; }
+
+        [Required]
         public string UserName { get; set; }
+        [Required]
         public string PasswordHash { get; set; }
+        [Required]
+        [EmailAddress]
         public string Email { get; set; }
 
-        public int? RoleId { get; set; }  // Nullable RoleId
-        public virtual Role? Role { get; set; }  // Nullable Role
+        public int? RoleId { get; set; }
+        public virtual Role? Role { get; set; }
     }
 }
