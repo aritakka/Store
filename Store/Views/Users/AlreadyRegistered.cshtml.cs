@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace Store.Views.Categories.Users
+namespace Store.Views.Users
 {
     public class AlreadyRegisteredModel : PageModel
     {

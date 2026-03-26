@@ -19,5 +19,9 @@ namespace Store.Models
         [DataType(DataType.Password)]
         [Compare(nameof(Password))]
         public string ConfirmPassword { get; set; }
+
+        // UI flags (устанавливаются контроллером, не формой)
+        public bool IsAuthenticated { get; set; }
+        public string? DisplayName { get; set; }
     }
 }

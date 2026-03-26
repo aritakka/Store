@@ -9,8 +9,8 @@ namespace Store.Models
 
         [Required]
         public string UserName { get; set; }
-        [Required]
-        public string PasswordHash { get; set; }
+        public string PasswordHash { get; set; } // не Required для форм, хешируем в контроллере
+
         [Required]
         [EmailAddress]
         public string Email { get; set; }
