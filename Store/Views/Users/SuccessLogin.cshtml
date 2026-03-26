@@ -1,0 +1,15 @@
+﻿// Views/Users/SuccessLogin.cshtml
+@{
+    ViewData["Title"] = "Успешно";
+}
+<div class="card mt-3">
+    <div class="card-body">
+        <h3>Вы успешно залогинены!</h3>
+        <p>Добро пожаловать, @User.Identity.Name!</p>
+        <p>
+            <a asp-controller="Users" asp-action="LogoutGet">Выйти</a>
+            |
+            <a asp-controller="Home" asp-action="Index">На главную</a>
+        </p>
+    </div>
+</div>

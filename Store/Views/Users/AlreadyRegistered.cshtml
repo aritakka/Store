@@ -1,3 +1,14 @@
-﻿@{
-    ViewData["Title"] = "Уже авторизованы";
+﻿// Views/Users/AlreadyRegistered.cshtml
+@{
+    ViewData["Title"] = "Уже залогинен";
 }
+<div class="card mt-3">
+    <div class="card-body">
+        <h4>Вы уже залогинены как @User.Identity.Name</h4>
+        <p>
+            <a asp-controller="Home" asp-action="Index">На главную</a>
+            |
+            <a asp-controller="Users" asp-action="LogoutGet">Выйти</a>
+        </p>
+    </div>
+</div>

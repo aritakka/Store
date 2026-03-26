@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authentication;
+﻿// Controllers/UsersController.cs (заменить/обновить существующий — интегрирует редирект на SuccessLogin)
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -87,7 +88,6 @@ namespace Store.Controllers
                 return View("Register", model);
             }
 
-            // Ensure role exists (create if missing)
             var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "Customer");
             if (role == null)
             {
@@ -128,8 +128,7 @@ namespace Store.Controllers
             var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
 
-            // Redirect back to Register GET so the view can show authenticated UI
-            return RedirectToAction(nameof(Register));
+            return RedirectToAction(nameof(SuccessLogin));
         }
 
         [HttpGet]
@@ -185,7 +184,8 @@ namespace Store.Controllers
                 if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
                     return Redirect(model.ReturnUrl);
 
-                return RedirectToAction("Privacy", "Home");
+                // Redirect to a success page that shows "Вы успешно залогинены!"
+                return RedirectToAction(nameof(SuccessLogin));
             }
             catch (Exception ex)
             {
@@ -212,6 +212,15 @@ namespace Store.Controllers
             if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
                 return Redirect(returnUrl);
             return RedirectToAction("Index", "Home");
+        }
+
+        [HttpGet]
+        public IActionResult SuccessLogin()
+        {
+            if (User?.Identity?.IsAuthenticated != true)
+                return RedirectToAction(nameof(Login));
+
+            return View("SuccessLogin");
         }
 
         [HttpGet]
