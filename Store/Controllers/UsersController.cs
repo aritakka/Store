@@ -1,12 +1,8 @@
-﻿// Controllers/UsersController.cs (заменить/обновить существующий — интегрирует редирект на SuccessLogin)
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Store.Data;
 using Store.Models;
-using System.Security.Claims;
 
 namespace Store.Controllers
 {
@@ -62,6 +58,10 @@ namespace Store.Controllers
                 IsAuthenticated = User?.Identity?.IsAuthenticated == true,
                 DisplayName = User?.Identity?.Name
             };
+
+            if (TempData["RegisterSuccess"] is string success)
+                ViewBag.RegisterSuccess = success;
+
             return View("Register", model);
         }
 
@@ -72,7 +72,7 @@ namespace Store.Controllers
             if (model == null)
             {
                 _logger.LogWarning("Register POST received null model.");
-                return View("Register", new RegisterViewModel());
+                return RedirectToAction("Register");
             }
 
             if (!ModelState.IsValid) return View("Register", model);
@@ -119,114 +119,24 @@ namespace Store.Controllers
 
             _logger.LogInformation("New user created: {UserName} (Id={Id})", user.UserName, user.Id);
 
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, user.UserName),
-                new Claim("UserId", user.Id.ToString()),
-                new Claim(ClaimTypes.Role, role.Name)
-            };
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
-
-            return RedirectToAction(nameof(SuccessLogin));
+            // Не трогаем текущую сессию. Используем PRG для отображения плашки.
+            TempData["RegisterSuccess"] = "Вы успешно зарегистрированы";
+            return RedirectToAction("Register");
         }
 
+        // Optional logout endpoints if still used elsewhere
         [HttpGet]
-        public IActionResult Login(string returnUrl = null)
+        public IActionResult AlreadyRegistered()
         {
-            if (User?.Identity?.IsAuthenticated == true)
-                return RedirectToAction(nameof(AlreadyRegistered));
-
-            var model = new LoginViewModel { ReturnUrl = returnUrl };
-            return View("Login", model);
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Login(LoginViewModel model)
-        {
-            try
-            {
-                if (model == null)
-                {
-                    _logger.LogWarning("Login POST received null model.");
-                    ModelState.AddModelError(string.Empty, "Некорректные данные.");
-                    return View("Login", new LoginViewModel());
-                }
-
-                if (!ModelState.IsValid) return View("Login", model);
-
-                var user = await _context.Users.Include(u => u.Role)
-                    .SingleOrDefaultAsync(u => u.UserName == model.UserName || u.Email == model.UserName);
-
-                if (user == null)
-                {
-                    ModelState.AddModelError(string.Empty, "Неверное имя пользователя или пароль.");
-                    return View("Login", model);
-                }
-
-                var verify = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, model.Password);
-                if (verify == PasswordVerificationResult.Failed)
-                {
-                    ModelState.AddModelError(string.Empty, "Неверное имя пользователя или пароль.");
-                    return View("Login", model);
-                }
-
-                var claims = new List<Claim>
-                {
-                    new Claim(ClaimTypes.Name, user.UserName),
-                    new Claim("UserId", user.Id.ToString()),
-                    new Claim(ClaimTypes.Role, user.Role?.Name ?? "Customer")
-                };
-                var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
-
-                if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
-                    return Redirect(model.ReturnUrl);
-
-                // Redirect to a success page that shows "Вы успешно залогинены!"
-                return RedirectToAction(nameof(SuccessLogin));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during Login for user {UserName}", model?.UserName);
-                ModelState.AddModelError(string.Empty, "Внутренняя ошибка сервера. Подробности в логах.");
-                return View("Login", model ?? new LoginViewModel());
-            }
-        }
-
-        // POST logout (recommended)
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Logout()
-        {
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return RedirectToAction("Index", "Home");
-        }
-
-        // GET logout convenience endpoint (safe redirect) to allow link-based logout from views
-        [HttpGet]
-        public async Task<IActionResult> LogoutGet(string returnUrl = null)
-        {
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
-                return Redirect(returnUrl);
-            return RedirectToAction("Index", "Home");
+            return View("AlreadyRegistered");
         }
 
         [HttpGet]
         public IActionResult SuccessLogin()
         {
-            if (User?.Identity?.IsAuthenticated != true)
-                return RedirectToAction(nameof(Login));
-
+            // Попробуем вернуть представление Views/Users/SuccessLogin.cshtml
+            // (файл у тебя уже есть).
             return View("SuccessLogin");
-        }
-
-        [HttpGet]
-        public IActionResult AlreadyRegistered()
-        {
-            return View("AlreadyRegistered");
         }
     }
 }

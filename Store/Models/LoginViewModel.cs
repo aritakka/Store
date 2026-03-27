@@ -5,12 +5,14 @@ namespace Store.Models
     public class LoginViewModel
     {
         [Required]
-        public string UserName { get; set; } // username or email
+        [Display(Name = "Имя пользователя")]
+        public string UserName { get; set; }
 
         [Required]
         [DataType(DataType.Password)]
+        [Display(Name = "Пароль")]
         public string Password { get; set; }
 
-        public string ReturnUrl { get; set; }
+        public string? ReturnUrl { get; set; }
     }
 }

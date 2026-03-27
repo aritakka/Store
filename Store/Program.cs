@@ -16,6 +16,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
+        // Поддерживаем оба URL: основной /Login/Login и совместимость с /Users/Login.
         options.LoginPath = "/Users/Login";
         options.LogoutPath = "/Users/Logout";
         options.Cookie.HttpOnly = true;
@@ -26,12 +27,12 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 // Password hasher for User
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
-// Optional: custom service you added (kept but not required)
+// Optional custom service
 builder.Services.AddScoped<Store.Services.IPasswordHasherService, Store.Services.PasswordHasherService>();
 
 var app = builder.Build();
 
-// Apply migrations and ensure required seed data
+// Apply migrations and seed
 using (var scope = app.Services.CreateScope())
 {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
@@ -40,7 +41,6 @@ using (var scope = app.Services.CreateScope())
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         db.Database.Migrate();
 
-        // Ensure "Customer" role exists
         if (!db.Roles.Any(r => r.Name == "Customer"))
         {
             db.Roles.Add(new Role { Name = "Customer" });
@@ -50,7 +50,6 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        // Log and continue (in development you may want to rethrow)
         logger.LogError(ex, "Error applying migrations or seeding database.");
     }
 }

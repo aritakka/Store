@@ -17,13 +17,17 @@
                 <a asp-controller="Users" asp-action="LogoutGet">Выйти</a>
                 |
                 <a asp-controller="Home" asp-action="Index">На главную</a>
-                <!-- можно добавить ссылку на профиль: <a asp-controller="Users" asp-action="Profile">Профиль</a> -->
             </p>
         </div>
     </div>
 }
 else
 {
+    @if (TempData["RegisterSuccess"] is string success)
+    {
+        <div class="alert alert-success mt-3">@success</div>
+    }
+
     <form asp-action="Register" method="post" class="mt-3">
         @Html.AntiForgeryToken()
         <div asp-validation-summary="All" class="text-danger"></div>
