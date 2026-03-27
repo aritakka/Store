@@ -1,0 +1,18 @@
+﻿@model Store.Models.Product
+
+<div class="card h-100 product-card" data-id="@Model.Id">
+    <img src="~/images/products/@Model.Id.jpg" class="card-img-top" alt="@Model.Name" onerror="this.src='/images/placeholder.png'">
+    <div class="card-body d-flex flex-column">
+        <h5 class="card-title">@Model.Name</h5>
+        <p class="card-text text-muted">@Model.Category?.Name</p>
+        <p class="card-text fw-bold">@Model.Price.ToString("C")</p>
+        <div class="mt-auto d-flex justify-content-between">
+            <a href="javascript:void(0)" class="btn btn-sm btn-outline-primary btn-details" data-id="@Model.Id">Посмотреть детали</a>
+            <form asp-controller="Cart" asp-action="Add" method="post" class="d-inline ms-1">
+                <input type="hidden" name="productId" value="@Model.Id" />
+                <input type="hidden" name="quantity" value="1" />
+                <button type="submit" class="btn btn-sm btn-primary">В корзину</button>
+            </form>
+        </div>
+    </div>
+</div>
