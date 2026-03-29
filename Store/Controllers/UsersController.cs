@@ -53,10 +53,17 @@ namespace Store.Controllers
         [HttpGet]
         public IActionResult Register()
         {
+            // Если уже аутентифицирован — не показываем форму регистрации
+            if (User?.Identity?.IsAuthenticated == true)
+            {
+                _logger.LogInformation("Authenticated user attempted to open Register page. Redirecting to Home.");
+                return RedirectToAction("Index", "Home");
+            }
+
             var model = new RegisterViewModel
             {
-                IsAuthenticated = User?.Identity?.IsAuthenticated == true,
-                DisplayName = User?.Identity?.Name
+                IsAuthenticated = false,
+                DisplayName = null
             };
 
             if (TempData["RegisterSuccess"] is string success)
@@ -69,6 +76,13 @@ namespace Store.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Register(RegisterViewModel model)
         {
+            // Если уже аутентифицирован — не позволяем повторно регистрироваться
+            if (User?.Identity?.IsAuthenticated == true)
+            {
+                _logger.LogInformation("Authenticated user attempted POST to Register. Redirecting to Home.");
+                return RedirectToAction("Index", "Home");
+            }
+
             if (model == null)
             {
                 _logger.LogWarning("Register POST received null model.");
@@ -119,7 +133,6 @@ namespace Store.Controllers
 
             _logger.LogInformation("New user created: {UserName} (Id={Id})", user.UserName, user.Id);
 
-            // Не трогаем текущую сессию. Используем PRG для отображения плашки.
             TempData["RegisterSuccess"] = "Вы успешно зарегистрированы";
             return RedirectToAction("Register");
         }
@@ -134,8 +147,6 @@ namespace Store.Controllers
         [HttpGet]
         public IActionResult SuccessLogin()
         {
-            // Попробуем вернуть представление Views/Users/SuccessLogin.cshtml
-            // (файл у тебя уже есть).
             return View("SuccessLogin");
         }
     }

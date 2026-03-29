@@ -28,6 +28,13 @@ namespace Store.Controllers
         [HttpGet]
         public IActionResult Login(string? returnUrl = null)
         {
+            // Если уже аутентифицирован — перенаправляем (чтобы нельзя было открыть форму)
+            if (User?.Identity?.IsAuthenticated == true)
+            {
+                _logger.LogInformation("Authenticated user attempted to open Login page. Redirecting to Home.");
+                return RedirectToAction("Index", "Home");
+            }
+
             var model = new LoginViewModel { ReturnUrl = returnUrl };
             return View("~/Views/Users/Login.cshtml", model);
         }
@@ -37,6 +44,15 @@ namespace Store.Controllers
         public async Task<IActionResult> Login(LoginViewModel model)
         {
             _logger.LogInformation("Login POST for UserName='{UserName}'", model?.UserName);
+
+            // Если уже аутентифицирован — не позволяем повторно логиниться
+            if (User?.Identity?.IsAuthenticated == true)
+            {
+                _logger.LogInformation("Authenticated user attempted POST to Login. Redirecting to Home.");
+                if (!string.IsNullOrEmpty(model?.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
+                    return Redirect(model.ReturnUrl);
+                return RedirectToAction("Index", "Home");
+            }
 
             if (!ModelState.IsValid)
             {
@@ -54,7 +70,6 @@ namespace Store.Controllers
                 return View("~/Views/Users/Login.cshtml", model);
             }
 
-            // Временное отладочное логирование хеша (убрать/закомментировать в проде)
             _logger.LogDebug("DB PasswordHash for {UserName}: {Hash}", user.UserName, user.PasswordHash);
 
             var verify = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash ?? string.Empty, model.Password);
@@ -81,7 +96,6 @@ namespace Store.Controllers
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal,
                 new AuthenticationProperties { IsPersistent = true });
 
-            // Логируем куки, которые будут установлены в ответе (для диагностики)
             foreach (var header in Response.Headers["Set-Cookie"])
             {
                 _logger.LogDebug("Set-Cookie header: {Header}", header);
