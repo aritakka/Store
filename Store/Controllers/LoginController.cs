@@ -36,19 +36,33 @@ namespace Store.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(LoginViewModel model)
         {
-            if (!ModelState.IsValid) return View("~/Views/Users/Login.cshtml", model);
+            _logger.LogInformation("Login POST for UserName='{UserName}'", model?.UserName);
+
+            if (!ModelState.IsValid)
+            {
+                var errors = string.Join("; ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
+                _logger.LogWarning("ModelState invalid for {UserName}: {Errors}", model?.UserName ?? "(null)", errors);
+                return View("~/Views/Users/Login.cshtml", model);
+            }
 
             var user = await _context.Users.Include(u => u.Role)
                                            .FirstOrDefaultAsync(u => u.UserName == model.UserName);
             if (user == null)
             {
+                _logger.LogWarning("User not found: {UserName}", model.UserName);
                 ModelState.AddModelError(string.Empty, "Неверное имя пользователя или пароль.");
                 return View("~/Views/Users/Login.cshtml", model);
             }
 
+            // Временное отладочное логирование хеша (убрать/закомментировать в проде)
+            _logger.LogDebug("DB PasswordHash for {UserName}: {Hash}", user.UserName, user.PasswordHash);
+
             var verify = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash ?? string.Empty, model.Password);
+            _logger.LogInformation("Password verification result for {UserName}: {Result}", user.UserName, verify);
+
             if (verify == PasswordVerificationResult.Failed)
             {
+                _logger.LogWarning("Password verification failed for {UserName}", user.UserName);
                 ModelState.AddModelError(string.Empty, "Неверное имя пользователя или пароль.");
                 return View("~/Views/Users/Login.cshtml", model);
             }
@@ -67,7 +81,14 @@ namespace Store.Controllers
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal,
                 new AuthenticationProperties { IsPersistent = true });
 
-            _logger.LogInformation("User {UserName} logged in (Id={Id})", user.UserName, user.Id);
+            // Логируем куки, которые будут установлены в ответе (для диагностики)
+            foreach (var header in Response.Headers["Set-Cookie"])
+            {
+                _logger.LogDebug("Set-Cookie header: {Header}", header);
+            }
+
+            _logger.LogInformation("User {UserName} logged in (Id={Id}). HttpContext.User.Identity.IsAuthenticated after SignIn: {IsAuth}",
+                user.UserName, user.Id, HttpContext.User?.Identity?.IsAuthenticated);
 
             if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
                 return Redirect(model.ReturnUrl);
@@ -83,9 +104,6 @@ namespace Store.Controllers
             return RedirectToAction("Index", "Home");
         }
 
-        // Добавляем GET-эндпоинт, на который указывает шаблон в представлениях (/Users/LogoutGet),
-        // но оставляем реализацию в LoginController — таким образом ссылки в представлениях продолжат работать,
-        // и выход будет выполнен через LoginController.
         [HttpGet]
         public async Task<IActionResult> LogoutGet()
         {
@@ -94,4 +112,3 @@ namespace Store.Controllers
         }
     }
 }
-

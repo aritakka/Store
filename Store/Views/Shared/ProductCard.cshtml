@@ -1,7 +1,7 @@
 ﻿@model Store.Models.Product
 
 <div class="card h-100 product-card" data-id="@Model.Id">
-    <img src="~/images/products/@Model.Id.jpg" class="card-img-top" alt="@Model.Name" onerror="this.src='/images/placeholder.png'">
+    <img src="https://d1csarkz8obe9u.cloudfront.net/posterpreviews/supermarket-grocery-logo-design-template-e43b99901aa11fad8aa024c3a84b0d2f_screen.jpg?ts=1734421227" class="card-img-top" alt="@Model.Name" onerror="this.src='/images/placeholder.png'">
     <div class="card-body d-flex flex-column">
         <h5 class="card-title">@Model.Name</h5>
         <p class="card-text text-muted">@Model.Category?.Name</p>
