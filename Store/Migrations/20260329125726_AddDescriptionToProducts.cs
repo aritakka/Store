@@ -4,10 +4,8 @@
 
 namespace Store.Migrations
 {
-    /// <inheritdoc />
     public partial class AddDescriptionToProducts : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropForeignKey(
@@ -22,11 +20,16 @@ namespace Store.Migrations
                 name: "FK_Products_Categories_CategoryId",
                 table: "Products");
 
-            migrationBuilder.AddColumn<string>(
-                name: "Description",
-                table: "Products",
-                type: "nvarchar(max)",
-                nullable: true);
+            // Добавляем колонку только если её ещё нет
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.columns
+                    WHERE Name = N'Description' AND Object_ID = Object_ID(N'dbo.Products')
+                )
+                BEGIN
+                    ALTER TABLE dbo.Products ADD Description nvarchar(max) NULL;
+                END
+            ");
 
             migrationBuilder.AddForeignKey(
                 name: "FK_OrderItems_Products_ProductId",
@@ -53,7 +56,6 @@ namespace Store.Migrations
                 onDelete: ReferentialAction.Restrict);
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropForeignKey(
@@ -68,9 +70,16 @@ namespace Store.Migrations
                 name: "FK_Products_Categories_CategoryId",
                 table: "Products");
 
-            migrationBuilder.DropColumn(
-                name: "Description",
-                table: "Products");
+            // Удаляем колонку только если она существует
+            migrationBuilder.Sql(@"
+                IF EXISTS (
+                    SELECT 1 FROM sys.columns
+                    WHERE Name = N'Description' AND Object_ID = Object_ID(N'dbo.Products')
+                )
+                BEGIN
+                    ALTER TABLE dbo.Products DROP COLUMN Description;
+                END
+            ");
 
             migrationBuilder.AddForeignKey(
                 name: "FK_OrderItems_Products_ProductId",
