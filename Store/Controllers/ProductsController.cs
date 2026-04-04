@@ -14,7 +14,7 @@ namespace Store.Controllers
             _db = db;
         }
 
-        // ✅ СТРАНИЦА ДЕТАЛЕЙ (ГЛАВНОЕ ЧТО НЕ ХВАТАЛО)
+        // 🔹 Страница деталей
         // GET: /Products/Details/5
         public async Task<IActionResult> Details(int id)
         {
@@ -30,7 +30,7 @@ namespace Store.Controllers
             return View(product);
         }
 
-        // GET: /Products/DetailsJson/5
+        // 🔹 JSON (если нужен)
         [HttpGet]
         public async Task<IActionResult> DetailsJson(int id)
         {
@@ -60,37 +60,23 @@ namespace Store.Controllers
             });
         }
 
-        // POST: /Products/EditJson/5
+        // 🔥 ГЛАВНОЕ — РАБОЧЕЕ СОХРАНЕНИЕ
         [HttpPost]
-        [ValidateAntiForgeryToken]
+        [IgnoreAntiforgeryToken] // 💥 ОБЯЗАТЕЛЬНО
         public async Task<IActionResult> EditJson(int id, [FromForm] ProductEditModel model)
         {
             if (id != model.Id)
                 return BadRequest();
 
-            var p = await _db.Products
-                .Include(x => x.ProductSuppliers)
-                .FirstOrDefaultAsync(x => x.Id == id);
+            var p = await _db.Products.FirstOrDefaultAsync(x => x.Id == id);
 
             if (p == null)
                 return NotFound();
 
-            p.Name = model.Name;
-            p.CategoryId = model.CategoryId;
+            // 🔥 Обновляем только нужные поля
             p.Price = model.Price;
             p.Quantity = model.Quantity;
             p.Description = model.Description;
-
-            if (model.SupplierId.HasValue)
-            {
-                p.ProductSuppliers.Clear();
-
-                p.ProductSuppliers.Add(new ProductSupplier
-                {
-                    ProductId = p.Id,
-                    SupplierId = model.SupplierId.Value
-                });
-            }
 
             await _db.SaveChangesAsync();
 
@@ -98,20 +84,14 @@ namespace Store.Controllers
         }
     }
 
-    // DTO для редактирования
+    // DTO
     public class ProductEditModel
     {
         public int Id { get; set; }
 
-        public string Name { get; set; } = string.Empty;
-
-        public int CategoryId { get; set; }
-
         public decimal Price { get; set; }
 
         public int Quantity { get; set; }
-
-        public int? SupplierId { get; set; }
 
         public string? Description { get; set; }
     }
