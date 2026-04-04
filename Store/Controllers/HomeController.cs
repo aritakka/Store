@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Store.Data;
@@ -21,7 +21,7 @@ namespace Store.Controllers
         }
 
         // GET: /
-        public async Task<IActionResult> Index(string search, int? categoryId)
+        public async Task<IActionResult> Index(string search, int? categoryId, decimal? minPrice, decimal? maxPrice)
         {
             var categories = await _db.Categories
                 .AsNoTracking()
@@ -33,14 +33,28 @@ namespace Store.Controllers
                 .Include(p => p.Category)
                 .Where(p => p.Quantity > 0);
 
+            // 🔍 Поиск
             if (!string.IsNullOrWhiteSpace(search))
             {
                 productsQuery = productsQuery.Where(p => EF.Functions.Like(p.Name, $"%{search}%"));
             }
 
+            // 📂 Категория
             if (categoryId.HasValue)
             {
                 productsQuery = productsQuery.Where(p => p.CategoryId == categoryId.Value);
+            }
+
+            // 💰 Цена от
+            if (minPrice.HasValue)
+            {
+                productsQuery = productsQuery.Where(p => p.Price >= minPrice.Value);
+            }
+
+            // 💰 Цена до
+            if (maxPrice.HasValue)
+            {
+                productsQuery = productsQuery.Where(p => p.Price <= maxPrice.Value);
             }
 
             var products = await productsQuery
@@ -51,8 +65,10 @@ namespace Store.Controllers
             ViewData["Categories"] = categories;
             ViewData["SearchQuery"] = search;
             ViewData["CategoryId"] = categoryId;
+            ViewData["MinPrice"] = minPrice;
+            ViewData["MaxPrice"] = maxPrice;
 
-            return View(products); // ������: IEnumerable<Product>
+            return View(products);
         }
 
         public IActionResult Privacy()
