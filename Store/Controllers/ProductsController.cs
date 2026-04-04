@@ -8,7 +8,27 @@ namespace Store.Controllers
     public class ProductsController : Controller
     {
         private readonly ApplicationDbContext _db;
-        public ProductsController(ApplicationDbContext db) => _db = db;
+
+        public ProductsController(ApplicationDbContext db)
+        {
+            _db = db;
+        }
+
+        // ✅ СТРАНИЦА ДЕТАЛЕЙ (ГЛАВНОЕ ЧТО НЕ ХВАТАЛО)
+        // GET: /Products/Details/5
+        public async Task<IActionResult> Details(int id)
+        {
+            var product = await _db.Products
+                .Include(p => p.Category)
+                .Include(p => p.ProductSuppliers)
+                    .ThenInclude(ps => ps.Supplier)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (product == null)
+                return NotFound();
+
+            return View(product);
+        }
 
         // GET: /Products/DetailsJson/5
         [HttpGet]
@@ -21,9 +41,11 @@ namespace Store.Controllers
                     .ThenInclude(ps => ps.Supplier)
                 .FirstOrDefaultAsync(x => x.Id == id);
 
-            if (p == null) return NotFound();
+            if (p == null)
+                return NotFound();
 
             var supplier = p.ProductSuppliers.FirstOrDefault()?.Supplier;
+
             return Json(new
             {
                 p.Id,
@@ -43,13 +65,15 @@ namespace Store.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditJson(int id, [FromForm] ProductEditModel model)
         {
-            if (id != model.Id) return BadRequest();
+            if (id != model.Id)
+                return BadRequest();
 
             var p = await _db.Products
                 .Include(x => x.ProductSuppliers)
                 .FirstOrDefaultAsync(x => x.Id == id);
 
-            if (p == null) return NotFound();
+            if (p == null)
+                return NotFound();
 
             p.Name = model.Name;
             p.CategoryId = model.CategoryId;
@@ -59,12 +83,17 @@ namespace Store.Controllers
 
             if (model.SupplierId.HasValue)
             {
-                // Простая логика: очистить текущие связи и добавить одну
                 p.ProductSuppliers.Clear();
-                p.ProductSuppliers.Add(new ProductSupplier { ProductId = p.Id, SupplierId = model.SupplierId.Value });
+
+                p.ProductSuppliers.Add(new ProductSupplier
+                {
+                    ProductId = p.Id,
+                    SupplierId = model.SupplierId.Value
+                });
             }
 
             await _db.SaveChangesAsync();
+
             return Json(new { success = true });
         }
     }
@@ -73,11 +102,17 @@ namespace Store.Controllers
     public class ProductEditModel
     {
         public int Id { get; set; }
+
         public string Name { get; set; } = string.Empty;
+
         public int CategoryId { get; set; }
+
         public decimal Price { get; set; }
+
         public int Quantity { get; set; }
+
         public int? SupplierId { get; set; }
+
         public string? Description { get; set; }
     }
 }
