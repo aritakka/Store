@@ -74,9 +74,15 @@
                 }
 
                 <div class="mt-3">
-                    <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">
-                        Назад
-                    </a>
+                    <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Назад</a>
+
+                    @* ✅ Кнопка "Добавить товар" для Admin *@
+                    @if (User.IsInRole("Admin"))
+                    {
+                        <a asp-controller="Products" asp-action="Create" class="btn btn-success ms-2">
+                            Добавить товар
+                        </a>
+                    }
                 </div>
 
             </div>
@@ -105,9 +111,7 @@
 
             if (saveBtn) {
                 saveBtn.onclick = async () => {
-
                     const data = new FormData();
-
                     data.append("Id", "@Model.Id");
                     data.append("Price", document.getElementById("priceInput").value);
                     data.append("Quantity", document.getElementById("qtyInput").value);
@@ -119,7 +123,6 @@
                     });
 
                     const result = await response.json();
-
                     if (result.success) {
                         location.reload();
                     } else {

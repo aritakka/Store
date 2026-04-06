@@ -16,7 +16,14 @@ namespace Store.Controllers
             _env = env;
         }
 
-        // 🔹 Детали
+        // 🔹 Список всех товаров
+        public async Task<IActionResult> Index()
+        {
+            var products = await _db.Products.Include(p => p.Category).ToListAsync();
+            return View(products);
+        }
+
+        // 🔹 Детали товара
         public async Task<IActionResult> Details(int id)
         {
             var product = await _db.Products
@@ -25,65 +32,93 @@ namespace Store.Controllers
                 .ThenInclude(ps => ps.Supplier)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
-            if (product == null)
-                return NotFound();
-
+            if (product == null) return NotFound();
             return View(product);
         }
 
-        // 🔥 Редактирование
-        [HttpPost]
-        [IgnoreAntiforgeryToken]
-        public async Task<IActionResult> EditJson(int id, [FromForm] ProductEditModel model)
+        // 🔹 Создание нового товара
+        [HttpGet]
+        public IActionResult Create()
         {
-            if (!User.IsInRole("Admin"))
-                return Unauthorized();
+            if (!User.IsInRole("Admin")) return Unauthorized();
+            ViewBag.Categories = _db.Categories.ToList();
+            return View();
+        }
 
-            var p = await _db.Products.FirstOrDefaultAsync(x => x.Id == id);
+        [HttpPost]
+        public async Task<IActionResult> Create(Product product, IFormFile? image)
+        {
+            if (!User.IsInRole("Admin")) return Unauthorized();
+            if (!ModelState.IsValid) return View(product);
 
-            if (p == null)
-                return NotFound();
-
-            p.Price = model.Price;
-            p.Quantity = model.Quantity;
-            p.Description = model.Description;
-
+            _db.Products.Add(product);
             await _db.SaveChangesAsync();
 
-            return Json(new { success = true });
-        }
-
-        // 🔥🔥🔥 ЗАГРУЗКА КАРТИНКИ
-        [HttpPost]
-        public async Task<IActionResult> UploadImage(int id, IFormFile file)
-        {
-            if (!User.IsInRole("Admin"))
-                return Unauthorized();
-
-            if (file == null || file.Length == 0)
-                return BadRequest("Файл не выбран");
-
-            var path = Path.Combine(_env.WebRootPath, "images/products");
-
-            if (!Directory.Exists(path))
-                Directory.CreateDirectory(path);
-
-            var filePath = Path.Combine(path, $"{id}.jpg");
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            if (image != null)
             {
-                await file.CopyToAsync(stream);
+                var path = Path.Combine(_env.WebRootPath, "images/products");
+                if (!Directory.Exists(path)) Directory.CreateDirectory(path);
+                var filePath = Path.Combine(path, $"{product.Id}.jpg");
+                using var stream = new FileStream(filePath, FileMode.Create);
+                await image.CopyToAsync(stream);
             }
 
-            return RedirectToAction("Details", new { id });
+            return RedirectToAction(nameof(Index));
         }
-    }
 
-    public class ProductEditModel
-    {
-        public int Id { get; set; }
-        public decimal Price { get; set; }
-        public int Quantity { get; set; }
-        public string? Description { get; set; }
+        // 🔹 Редактирование товара
+        [HttpGet]
+        public async Task<IActionResult> Edit(int id)
+        {
+            if (!User.IsInRole("Admin")) return Unauthorized();
+            var product = await _db.Products.FindAsync(id);
+            if (product == null) return NotFound();
+            ViewBag.Categories = _db.Categories.ToList();
+            return View(product);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Edit(Product product, IFormFile? image)
+        {
+            if (!User.IsInRole("Admin")) return Unauthorized();
+            if (!ModelState.IsValid) return View(product);
+
+            _db.Products.Update(product);
+            await _db.SaveChangesAsync();
+
+            if (image != null)
+            {
+                var path = Path.Combine(_env.WebRootPath, "images/products");
+                if (!Directory.Exists(path)) Directory.CreateDirectory(path);
+                var filePath = Path.Combine(path, $"{product.Id}.jpg");
+                using var stream = new FileStream(filePath, FileMode.Create);
+                await image.CopyToAsync(stream);
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        // 🔹 Удаление товара
+        [HttpGet]
+        public async Task<IActionResult> Delete(int id)
+        {
+            if (!User.IsInRole("Admin")) return Unauthorized();
+            var product = await _db.Products.Include(p => p.Category).FirstOrDefaultAsync(p => p.Id == id);
+            if (product == null) return NotFound();
+            return View(product);
+        }
+
+        [HttpPost, ActionName("Delete")]
+        public async Task<IActionResult> DeleteConfirmed(int id)
+        {
+            if (!User.IsInRole("Admin")) return Unauthorized();
+            var product = await _db.Products.FindAsync(id);
+            if (product != null)
+            {
+                _db.Products.Remove(product);
+                await _db.SaveChangesAsync();
+            }
+            return RedirectToAction(nameof(Index));
+        }
     }
 }
