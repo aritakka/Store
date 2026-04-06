@@ -20,3 +20,19 @@ html {
 body {
     margin-bottom: 60px;
 }
+.product-card {
+    transition: all 0.3s ease;
+    border-radius: 12px;
+}
+
+    .product-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+
+.product-img {
+    height: 200px;
+    object-fit: cover;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
