@@ -70,6 +70,16 @@
                     <div class="mt-3">
                         <button id="editBtn" class="btn btn-warning">Редактировать</button>
                         <button id="saveBtn" class="btn btn-success d-none">Сохранить</button>
+
+                        <!-- ✅ Кнопка удаления -->
+                        <div class="mt-2">
+                            <form asp-action="Delete" asp-route-id="@Model.Id" method="post"
+                                  onsubmit="return confirm('Вы точно хотите удалить этот товар?');">
+                                <button type="submit" class="btn btn-danger">
+                                    Удалить
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 }
 

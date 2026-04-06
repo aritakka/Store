@@ -37,7 +37,9 @@
                         @if (User.IsInRole("Admin"))
                         {
                             <a asp-action="Edit" asp-route-id="@p.Id" class="btn btn-warning btn-sm">Редактировать</a>
-                            <a asp-action="Delete" asp-route-id="@p.Id" class="btn btn-danger btn-sm">Удалить</a>
+                            <form asp-action="Delete" asp-route-id="@p.Id" method="post" class="d-inline" onsubmit="return confirm('Вы точно хотите удалить этот товар?');">
+                                <button type="submit" class="btn btn-danger btn-sm">Удалить</button>
+                            </form>
                         }
                     </td>
                 </tr>
