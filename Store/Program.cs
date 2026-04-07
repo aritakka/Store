@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Store.Data;
 using Store.Models;
+using Store.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ===== Add services =====
 builder.Services.AddControllersWithViews();
 
 // DB
@@ -16,7 +18,6 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        // Поддерживаем оба URL: основной /Login/Login и совместимость с /Users/Login.
         options.LoginPath = "/Users/Login";
         options.LogoutPath = "/Users/Logout";
         options.Cookie.HttpOnly = true;
@@ -24,36 +25,72 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.SlidingExpiration = true;
     });
 
-// Password hasher for User
+// Password hasher
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
-
-// Optional custom service
-builder.Services.AddScoped<Store.Services.IPasswordHasherService, Store.Services.PasswordHasherService>();
+builder.Services.AddScoped<IPasswordHasherService, PasswordHasherService>();
 
 var app = builder.Build();
 
-// Apply migrations and seed
+// ===== Initialize DB & Seed =====
 using (var scope = app.Services.CreateScope())
 {
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    var services = scope.ServiceProvider;
+    var db = services.GetRequiredService<ApplicationDbContext>();
+
     try
     {
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         db.Database.Migrate();
 
-        if (!db.Roles.Any(r => r.Name == "Customer"))
+        if (!db.Roles.Any())
         {
-            db.Roles.Add(new Role { Name = "Customer" });
+            db.Roles.AddRange(
+                new Role { Name = "Customer" },
+                new Role { Name = "Admin" },
+                new Role { Name = "Supplier" }
+            );
             db.SaveChanges();
-            logger.LogInformation("Seeded role 'Customer'.");
         }
+
+        var hasher = services.GetRequiredService<IPasswordHasher<User>>();
+        var supplierRole = db.Roles.First(r => r.Name == "Supplier");
+        var customerRole = db.Roles.First(r => r.Name == "Customer");
+
+        if (!db.Users.Any(u => u.UserName == "supplier1"))
+        {
+            var supplierUser = new User
+            {
+                UserName = "supplier1",
+                Email = "supplier1@mail.com",
+                RoleId = supplierRole.Id
+            };
+            supplierUser.PasswordHash = hasher.HashPassword(supplierUser, "123");
+            db.Users.Add(supplierUser);
+        }
+
+        if (!db.Users.Any(u => u.UserName == "customer1"))
+        {
+            var customerUser = new User
+            {
+                UserName = "customer1",
+                Email = "customer1@mail.com",
+                RoleId = customerRole.Id
+            };
+            customerUser.PasswordHash = hasher.HashPassword(customerUser, "123");
+            db.Users.Add(customerUser);
+        }
+
+        db.SaveChanges();
+
+        DbInitializer.Initialize(db);
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Error applying migrations or seeding database.");
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Ошибка при инициализации базы данных");
     }
 }
 
+// ===== Middleware =====
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
@@ -67,10 +104,10 @@ else
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
-
 app.UseAuthentication();
 app.UseAuthorization();
 
+// ===== Map routes =====
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");

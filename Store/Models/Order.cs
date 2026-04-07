@@ -10,16 +10,19 @@ namespace Store.Models
         [Key]
         public int Id { get; set; }
 
-        public DateTime OrderDate { get; set; }
+        public DateTime OrderDate { get; set; } = DateTime.Now;
 
-        // Сделано nullable, чтобы поддерживать OnDelete(SetNull)
-        public int? CustomerId { get; set; }
+        public int CustomerId { get; set; }
 
         [ForeignKey("CustomerId")]
-        public virtual Customer? Customer { get; set; }
+        public virtual Customer Customer { get; set; }
 
         public decimal TotalAmount { get; set; }
 
+        public string Status { get; set; } = "New"; // New / Paid / Shipped / Completed
+
         public virtual ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
+
+        public virtual Payment? Payment { get; set; }
     }
 }

@@ -6,6 +6,7 @@ using Store.Models;
 
 using System.Diagnostics;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace Store.Controllers
 {
@@ -23,6 +24,29 @@ namespace Store.Controllers
         // GET: /
         public async Task<IActionResult> Index(string search, int? categoryId, decimal? minPrice, decimal? maxPrice)
         {
+            // ======= Мини-логика для пользователя supplier =======
+            if (User?.Identity?.IsAuthenticated == true && User.Identity.Name == "supplier")
+            {
+                var user = await _db.Users.FirstOrDefaultAsync(u => u.UserName == "supplier");
+                if (user != null)
+                {
+                    // Проверим, есть ли уже связанный поставщик
+                    var existingSupplier = await _db.Suppliers.FirstOrDefaultAsync(s => s.Id == user.Id);
+                    if (existingSupplier == null)
+                    {
+                        // Создаем нового поставщика с Id = User.Id (чтобы привязка была)
+                        var supplier = new Supplier
+                        {
+                            Name = "ООО Поставщик",
+                            ContactInfo = "контакт для поставщика"
+                        };
+                        _db.Suppliers.Add(supplier);
+                        await _db.SaveChangesAsync();
+                    }
+                }
+            }
+            // =======================================================
+
             var categories = await _db.Categories
                 .AsNoTracking()
                 .OrderBy(c => c.Name)

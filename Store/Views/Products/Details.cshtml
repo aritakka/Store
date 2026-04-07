@@ -86,6 +86,17 @@
                 <div class="mt-3">
                     <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Назад</a>
 
+                    @* 🛒 КНОПКА ПОКУПКИ (ДОБАВИЛ) *@
+                    @if (!User.IsInRole("Admin"))
+                    {
+                        <form asp-controller="Orders" asp-action="CreateQuickOrder" method="post" class="d-inline ms-2">
+                            <input type="hidden" name="productId" value="@Model.Id" />
+                            <button type="submit" class="btn btn-primary">
+                                Купить в 1 клик
+                            </button>
+                        </form>
+                    }
+
                     @* ✅ Кнопка "Добавить товар" для Admin *@
                     @if (User.IsInRole("Admin"))
                     {

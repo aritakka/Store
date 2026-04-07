@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Store.Data;
 using Store.Models;
+using System.Security.Claims;
 
 namespace Store.Controllers
 {
@@ -16,11 +17,27 @@ namespace Store.Controllers
             _env = env;
         }
 
-        // 🔹 Список всех товаров
+        // 🔹 Список товаров
         public async Task<IActionResult> Index()
         {
-            var products = await _db.Products.Include(p => p.Category).ToListAsync();
-            return View(products);
+            if (User.IsInRole("Admin"))
+            {
+                var allProducts = await _db.Products.Include(p => p.Category).ToListAsync();
+                return View(allProducts);
+            }
+            else if (User.IsInRole("Supplier"))
+            {
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                var supplierProducts = await _db.ProductSuppliers
+                    .Include(ps => ps.Product)
+                        .ThenInclude(p => p.Category)
+                    .Where(ps => ps.SupplierId == userId)
+                    .Select(ps => ps.Product)
+                    .ToListAsync();
+                return View(supplierProducts);
+            }
+
+            return Unauthorized();
         }
 
         // 🔹 Детали товара
@@ -29,10 +46,19 @@ namespace Store.Controllers
             var product = await _db.Products
                 .Include(p => p.Category)
                 .Include(p => p.ProductSuppliers)
-                .ThenInclude(ps => ps.Supplier)
+                    .ThenInclude(ps => ps.Supplier)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (product == null) return NotFound();
+
+            // Проверка: Supplier видит только свои товары
+            if (User.IsInRole("Supplier"))
+            {
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                if (!product.ProductSuppliers.Any(ps => ps.SupplierId == userId))
+                    return Unauthorized();
+            }
+
             return View(product);
         }
 
@@ -40,7 +66,9 @@ namespace Store.Controllers
         [HttpGet]
         public IActionResult Create()
         {
-            if (!User.IsInRole("Admin")) return Unauthorized();
+            if (!User.IsInRole("Admin") && !User.IsInRole("Supplier"))
+                return Unauthorized();
+
             ViewBag.Categories = _db.Categories.ToList();
             return View();
         }
@@ -48,11 +76,25 @@ namespace Store.Controllers
         [HttpPost]
         public async Task<IActionResult> Create(Product product, IFormFile? image)
         {
-            if (!User.IsInRole("Admin")) return Unauthorized();
+            if (!User.IsInRole("Admin") && !User.IsInRole("Supplier"))
+                return Unauthorized();
+
             if (!ModelState.IsValid) return View(product);
 
             _db.Products.Add(product);
             await _db.SaveChangesAsync();
+
+            // Привязка товара к поставщику, если это Supplier
+            if (User.IsInRole("Supplier"))
+            {
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                _db.ProductSuppliers.Add(new ProductSupplier
+                {
+                    ProductId = product.Id,
+                    SupplierId = userId
+                });
+                await _db.SaveChangesAsync();
+            }
 
             if (image != null)
             {
@@ -70,9 +112,23 @@ namespace Store.Controllers
         [HttpGet]
         public async Task<IActionResult> Edit(int id)
         {
-            if (!User.IsInRole("Admin")) return Unauthorized();
-            var product = await _db.Products.FindAsync(id);
+            var product = await _db.Products
+                .Include(p => p.ProductSuppliers)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
             if (product == null) return NotFound();
+
+            if (User.IsInRole("Supplier"))
+            {
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                if (!product.ProductSuppliers.Any(ps => ps.SupplierId == userId))
+                    return Unauthorized();
+            }
+            else if (!User.IsInRole("Admin"))
+            {
+                return Unauthorized();
+            }
+
             ViewBag.Categories = _db.Categories.ToList();
             return View(product);
         }
@@ -80,7 +136,19 @@ namespace Store.Controllers
         [HttpPost]
         public async Task<IActionResult> Edit(Product product, IFormFile? image)
         {
-            if (!User.IsInRole("Admin")) return Unauthorized();
+            if (User.IsInRole("Supplier"))
+            {
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                var ownsProduct = await _db.ProductSuppliers
+                    .AnyAsync(ps => ps.ProductId == product.Id && ps.SupplierId == userId);
+
+                if (!ownsProduct) return Unauthorized();
+            }
+            else if (!User.IsInRole("Admin"))
+            {
+                return Unauthorized();
+            }
+
             if (!ModelState.IsValid) return View(product);
 
             _db.Products.Update(product);
@@ -102,22 +170,46 @@ namespace Store.Controllers
         [HttpGet]
         public async Task<IActionResult> Delete(int id)
         {
-            if (!User.IsInRole("Admin")) return Unauthorized();
-            var product = await _db.Products.Include(p => p.Category).FirstOrDefaultAsync(p => p.Id == id);
+            var product = await _db.Products
+                .Include(p => p.ProductSuppliers)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
             if (product == null) return NotFound();
+
+            if (User.IsInRole("Supplier"))
+            {
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                if (!product.ProductSuppliers.Any(ps => ps.SupplierId == userId))
+                    return Unauthorized();
+            }
+            else if (!User.IsInRole("Admin"))
+            {
+                return Unauthorized();
+            }
+
             return View(product);
         }
 
         [HttpPost, ActionName("Delete")]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            if (!User.IsInRole("Admin")) return Unauthorized();
             var product = await _db.Products.FindAsync(id);
-            if (product != null)
+            if (product == null) return NotFound();
+
+            if (User.IsInRole("Supplier"))
             {
-                _db.Products.Remove(product);
-                await _db.SaveChangesAsync();
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                var ownsProduct = await _db.ProductSuppliers
+                    .AnyAsync(ps => ps.ProductId == id && ps.SupplierId == userId);
+                if (!ownsProduct) return Unauthorized();
             }
+            else if (!User.IsInRole("Admin"))
+            {
+                return Unauthorized();
+            }
+
+            _db.Products.Remove(product);
+            await _db.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
     }

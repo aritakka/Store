@@ -1,0 +1,45 @@
+﻿@model IEnumerable<Store.Models.Order>
+
+@{
+    ViewData["Title"] = "Заказы на мои товары";
+}
+
+<h2>Заказы на мои товары</h2>
+
+@if (!Model.Any())
+{
+    <p>Пока нет заказов на ваши товары.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Номер заказа</th>
+                <th>Дата</th>
+                <th>Статус</th>
+                <th>Клиент</th>
+                <th>Товары</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var order in Model)
+            {
+                <tr>
+                    <td>@order.Id</td>
+                    <td>@order.OrderDate.ToString("dd.MM.yyyy HH:mm")</td>
+                    <td>@order.Status</td>
+                    <td>@order.Customer?.FullName</td>
+                    <td>
+                        <ul>
+                            @foreach (var item in order.OrderItems)
+                            {
+                                <li>@item.Product.Name x @item.Quantity</li>
+                            }
+                        </ul>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

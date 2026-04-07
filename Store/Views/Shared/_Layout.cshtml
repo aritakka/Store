@@ -26,6 +26,12 @@
                         </li>
                     </ul>
                     <ul class="navbar-nav">
+                        @if (User.IsInRole("Supplier"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Suppliers" asp-action="Index">Мои товары</a>
+                            </li>
+                        }
                         @if (User?.Identity?.IsAuthenticated == true)
                         {
                             <li class="nav-item">

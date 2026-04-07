@@ -1,7 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Store.Data;
 using Store.Models;
-using System.Linq;
+using System.Security.Claims;
 
 namespace Store.Controllers
 {
@@ -14,80 +15,115 @@ namespace Store.Controllers
             _context = context;
         }
 
-        // GET: Orders
-        public IActionResult Index()
+        // GET: /Orders/MyOrders
+        public async Task<IActionResult> MyOrders(bool justOrdered = false)
         {
-            var orders = _context.Orders.ToList();
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            var customer = await _context.Customers
+                .Include(c => c.Orders)
+                    .ThenInclude(o => o.OrderItems)
+                        .ThenInclude(oi => oi.Product)
+                .Include(c => c.Orders)
+                    .ThenInclude(o => o.Payment)
+                .FirstOrDefaultAsync(c => c.UserId == userId);
+
+            if (customer == null)
+            {
+                var user = await _context.Users.FindAsync(userId);
+                customer = new Customer
+                {
+                    UserId = userId,
+                    FullName = user.UserName,
+                    Email = user.Email,
+                    Phone = ""
+                };
+                _context.Customers.Add(customer);
+                await _context.SaveChangesAsync();
+            }
+
+            var orders = customer.Orders.OrderByDescending(o => o.OrderDate).ToList();
+
+            ViewBag.JustOrdered = justOrdered;
+
             return View(orders);
         }
 
-        // GET: Orders/Details/5
-        public IActionResult Details(int id)
-        {
-            var order = _context.Orders.FirstOrDefault(o => o.Id == id);
-            if (order == null) return NotFound();
-            return View(order);
-        }
-
-        // GET: Orders/Create
-        public IActionResult Create() => View();
-
-        // POST: Orders/Create
+        // POST: /Orders/CreateQuickOrder
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Create(Order order)
+        public async Task<IActionResult> CreateQuickOrder(int productId, int quantity = 1)
         {
-            if (ModelState.IsValid)
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            var customer = await _context.Customers
+                .FirstOrDefaultAsync(c => c.UserId == userId);
+
+            if (customer == null)
             {
-                _context.Orders.Add(order);
-                _context.SaveChanges();
-                return RedirectToAction(nameof(Index));
+                var user = await _context.Users.FindAsync(userId);
+                customer = new Customer
+                {
+                    UserId = userId,
+                    FullName = user.UserName,
+                    Email = user.Email,
+                    Phone = ""
+                };
+                _context.Customers.Add(customer);
+                await _context.SaveChangesAsync();
             }
-            return View(order);
-        }
 
-        // GET: Orders/Edit/5
-        public IActionResult Edit(int id)
-        {
-            var order = _context.Orders.FirstOrDefault(o => o.Id == id);
-            if (order == null) return NotFound();
-            return View(order);
-        }
+            var product = await _context.Products.FindAsync(productId);
+            if (product == null) return NotFound();
 
-        // POST: Orders/Edit/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public IActionResult Edit(int id, Order order)
-        {
-            if (id != order.Id) return NotFound();
-
-            if (ModelState.IsValid)
+            var order = new Order
             {
-                _context.Update(order);
-                _context.SaveChanges();
-                return RedirectToAction(nameof(Index));
-            }
-            return View(order);
+                CustomerId = customer.Id,
+                OrderDate = DateTime.Now,
+                TotalAmount = product.Price * quantity,
+                Status = "New"
+            };
+
+            var orderItem = new OrderItem
+            {
+                ProductId = product.Id,
+                Quantity = quantity,
+                Price = product.Price
+            };
+
+            order.OrderItems.Add(orderItem);
+            _context.Orders.Add(order);
+
+            var payment = new Payment
+            {
+                Order = order,
+                Amount = order.TotalAmount,
+                PaymentDate = DateTime.Now,
+                PaymentMethod = "Cash",
+                Status = "Pending"
+            };
+            _context.Payments.Add(payment);
+
+            await _context.SaveChangesAsync();
+
+            // Редирект с флагом justOrdered для уведомления
+            return RedirectToAction("MyOrders", new { justOrdered = true });
         }
 
-        // GET: Orders/Delete/5
-        public IActionResult Delete(int id)
-        {
-            var order = _context.Orders.FirstOrDefault(o => o.Id == id);
-            if (order == null) return NotFound();
-            return View(order);
-        }
-
-        // POST: Orders/Delete/5
+        // POST: /Orders/Pay
         [HttpPost]
-        [ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public IActionResult DeleteConfirmed(int id)
+        public async Task<IActionResult> Pay(int orderId)
         {
-            var order = _context.Orders.Find(id);
-            _context.Orders.Remove(order);
-            _context.SaveChanges();
-            return RedirectToAction(nameof(Index));
+            var payment = await _context.Payments.FirstOrDefaultAsync(p => p.OrderId == orderId);
+            if (payment != null)
+            {
+                payment.Status = "Completed";
+                var order = await _context.Orders.FindAsync(orderId);
+                if (order != null) order.Status = "Completed";
+                await _context.SaveChangesAsync();
+            }
+            return RedirectToAction("MyOrders");
         }
     }
 }

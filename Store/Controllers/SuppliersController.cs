@@ -1,10 +1,14 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Store.Data;
 using Store.Models;
 using System.Linq;
+using System.Security.Claims;
 
 namespace Store.Controllers
 {
+    [Authorize(Roles = "Supplier")]
     public class SuppliersController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -14,80 +18,38 @@ namespace Store.Controllers
             _context = context;
         }
 
-        // GET: Suppliers
+        // GET: /Suppliers
         public IActionResult Index()
         {
-            var suppliers = _context.Suppliers.ToList();
-            return View(suppliers);
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            // Получаем все товары этого поставщика
+            var products = _context.ProductSuppliers
+                .Include(ps => ps.Product)
+                    .ThenInclude(p => p.Category)
+                .Where(ps => ps.SupplierId == userId)
+                .Select(ps => ps.Product)
+                .ToList();
+
+            return View(products);
         }
 
-        // GET: Suppliers/Details/5
-        public IActionResult Details(int id)
+        // GET: /Suppliers/Orders
+        public IActionResult Orders()
         {
-            var supplier = _context.Suppliers.FirstOrDefault(s => s.Id == id);
-            if (supplier == null) return NotFound();
-            return View(supplier);
-        }
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
-        // GET: Suppliers/Create
-        public IActionResult Create() => View();
+            // Заказы на товары этого поставщика
+            var orders = _context.OrderItems
+                .Include(oi => oi.Product)
+                .Include(oi => oi.Order)
+                    .ThenInclude(o => o.Customer)
+                .Where(oi => oi.Product.ProductSuppliers.Any(ps => ps.SupplierId == userId))
+                .Select(oi => oi.Order)
+                .Distinct()
+                .ToList();
 
-        // POST: Suppliers/Create
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public IActionResult Create(Supplier supplier)
-        {
-            if (ModelState.IsValid)
-            {
-                _context.Suppliers.Add(supplier);
-                _context.SaveChanges();
-                return RedirectToAction(nameof(Index));
-            }
-            return View(supplier);
-        }
-
-        // GET: Suppliers/Edit/5
-        public IActionResult Edit(int id)
-        {
-            var supplier = _context.Suppliers.FirstOrDefault(s => s.Id == id);
-            if (supplier == null) return NotFound();
-            return View(supplier);
-        }
-
-        // POST: Suppliers/Edit/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public IActionResult Edit(int id, Supplier supplier)
-        {
-            if (id != supplier.Id) return NotFound();
-
-            if (ModelState.IsValid)
-            {
-                _context.Update(supplier);
-                _context.SaveChanges();
-                return RedirectToAction(nameof(Index));
-            }
-            return View(supplier);
-        }
-
-        // GET: Suppliers/Delete/5
-        public IActionResult Delete(int id)
-        {
-            var supplier = _context.Suppliers.FirstOrDefault(s => s.Id == id);
-            if (supplier == null) return NotFound();
-            return View(supplier);
-        }
-
-        // POST: Suppliers/Delete/5
-        [HttpPost]
-        [ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public IActionResult DeleteConfirmed(int id)
-        {
-            var supplier = _context.Suppliers.Find(id);
-            _context.Suppliers.Remove(supplier);
-            _context.SaveChanges();
-            return RedirectToAction(nameof(Index));
+            return View(orders);
         }
     }
 }

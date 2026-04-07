@@ -1,0 +1,76 @@
+﻿@model IEnumerable<Store.Models.Order>
+
+@{
+    ViewData["Title"] = "Мои заказы";
+    var justOrdered = ViewBag.JustOrdered ?? false;
+}
+
+<div class="container mt-4">
+
+    <h2>Мои заказы</h2>
+
+    @* ✅ Уведомление после 1 клика *@
+    @if (justOrdered)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            Заказ успешно создан!
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (!Model.Any())
+    {
+        <p>У вас пока нет заказов.</p>
+    }
+    else
+    {
+        <table class="table table-striped mt-3">
+            <thead>
+                <tr>
+                    <th>Номер заказа</th>
+                    <th>Дата</th>
+                    <th>Сумма</th>
+                    <th>Статус</th>
+                    <th>Товары</th>
+                    <th>Оплата</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var order in Model)
+                {
+                    <tr>
+                        <td>@order.Id</td>
+                        <td>@order.OrderDate.ToString("dd.MM.yyyy HH:mm")</td>
+                        <td>@order.TotalAmount</td>
+                        <td>@order.Status</td>
+                        <td>
+                            <ul>
+                                @foreach (var item in order.OrderItems)
+                                {
+                                    <li>@item.Product.Name x @item.Quantity (@item.Price)</li>
+                                }
+                            </ul>
+                        </td>
+                        <td>
+                            @if (order.Payment != null)
+                            {
+                                <text>@order.Payment.Status (@order.Payment.PaymentMethod)</text>
+                                @if (order.Payment.Status == "Pending")
+                                {
+                                    <form asp-action="Pay" asp-controller="Orders" method="post" style="display:inline;">
+                                        <input type="hidden" name="orderId" value="@order.Id" />
+                                        <button type="submit" class="btn btn-sm btn-success ms-2">Оплатить</button>
+                                    </form>
+                                }
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+}

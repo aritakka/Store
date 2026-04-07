@@ -1,41 +1,46 @@
-﻿@model IEnumerable<Supplier>
+﻿@model IEnumerable<Store.Models.Product>
 
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Мои товары";
 }
 
-<h1>Index</h1>
+<h1>@ViewData["Title"]</h1>
 
 <p>
-    <a asp-action="Create">Create New</a>
+    <a asp-controller="Products" asp-action="Create" class="btn btn-success">Добавить новый товар</a>
+    <a asp-controller="Suppliers" asp-action="Orders" class="btn btn-primary">Посмотреть заказы</a>
 </p>
-<table class="table">
-    <thead>
-        <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.Name)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ContactInfo)
-            </th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-@foreach (var item in Model) {
-        <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.Name)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.ContactInfo)
-            </td>
-            <td>
-                <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> |
-                <a asp-action="Details" asp-route-id="@item.Id">Details</a> |
-                <a asp-action="Delete" asp-route-id="@item.Id">Delete</a>
-            </td>
-        </tr>
+
+@if (!Model.Any())
+{
+    <p>У вас пока нет товаров.</p>
 }
-    </tbody>
-</table>
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Название</th>
+                <th>Категория</th>
+                <th>Цена</th>
+                <th>Количество</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var product in Model)
+            {
+                <tr>
+                    <td>@product.Name</td>
+                    <td>@product.Category?.Name</td>
+                    <td>@product.Price.ToString("F2") ₽</td>
+                    <td>@product.Quantity</td>
+                    <td>
+                        <a asp-controller="Products" asp-action="Edit" asp-route-id="@product.Id" class="btn btn-sm btn-warning">Редактировать</a>
+                        <a asp-controller="Products" asp-action="Details" asp-route-id="@product.Id" class="btn btn-sm btn-info">Детали</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
