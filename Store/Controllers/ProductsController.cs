@@ -51,7 +51,6 @@ namespace Store.Controllers
 
             if (product == null) return NotFound();
 
-            // Проверка: Supplier видит только свои товары
             if (User.IsInRole("Supplier"))
             {
                 var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
@@ -88,10 +87,26 @@ namespace Store.Controllers
             if (User.IsInRole("Supplier"))
             {
                 var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+                // Ищем существующего Supplier
+                var supplier = await _db.Suppliers.FirstOrDefaultAsync(s => s.Id == userId);
+                if (supplier == null)
+                {
+                    // Создаем нового Supplier с Id = User.Id
+                    supplier = new Supplier
+                    {
+                        Id = userId,
+                        Name = User.Identity?.Name ?? "Поставщик"
+                    };
+                    _db.Suppliers.Add(supplier);
+                    await _db.SaveChangesAsync();
+                }
+
+                // Добавляем связь ProductSupplier
                 _db.ProductSuppliers.Add(new ProductSupplier
                 {
                     ProductId = product.Id,
-                    SupplierId = userId
+                    SupplierId = supplier.Id
                 });
                 await _db.SaveChangesAsync();
             }
