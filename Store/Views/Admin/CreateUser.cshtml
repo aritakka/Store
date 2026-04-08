@@ -1,0 +1,34 @@
+﻿@{
+    ViewData["Title"] = "Добавить пользователя";
+    var roles = ViewBag.Roles as List<Store.Models.Role>;
+}
+
+<div class="container mt-4">
+    <h2>Добавить пользователя</h2>
+
+    <form asp-action="CreateUser" method="post">
+
+        <div class="mb-3">
+            <input name="userName" class="form-control" placeholder="Имя пользователя" />
+        </div>
+
+        <div class="mb-3">
+            <input name="email" class="form-control" placeholder="Email" />
+        </div>
+
+        <div class="mb-3">
+            <input name="password" type="password" class="form-control" placeholder="Пароль" />
+        </div>
+
+        <div class="mb-3">
+            <select name="roleId" class="form-select">
+                @foreach (var role in roles)
+                {
+                    <option value="@role.Id">@role.Name</option>
+                }
+            </select>
+        </div>
+
+        <button class="btn btn-success">Создать</button>
+    </form>
+</div>

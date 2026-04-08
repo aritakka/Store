@@ -1,0 +1,34 @@
+﻿@{
+    ViewData["Title"] = "Изменить роль";
+    var users = ViewBag.Users as List<Store.Models.User>;
+    var roles = ViewBag.Roles as List<Store.Models.Role>;
+}
+
+<div class="container mt-4">
+    <h2>Изменить роль пользователя</h2>
+
+    <form asp-action="ChangeRole" method="post">
+
+        <div class="mb-3">
+            <select name="userId" class="form-select">
+                @foreach (var u in users)
+                {
+                    <option value="@u.Id">
+                        @u.UserName (@u.Role?.Name)
+                    </option>
+                }
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <select name="roleId" class="form-select">
+                @foreach (var r in roles)
+                {
+                    <option value="@r.Id">@r.Name</option>
+                }
+            </select>
+        </div>
+
+        <button class="btn btn-warning">Изменить</button>
+    </form>
+</div>

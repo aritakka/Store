@@ -66,8 +66,21 @@
         </div>
 
         <div class="col-md-4 text-end">
+
+            @if (User.IsInRole("Admin"))
+            {
+                <a asp-controller="Admin" asp-action="CreateUser" class="btn btn-success me-2">
+                    Добавить пользователя
+                </a>
+
+                <a asp-controller="Admin" asp-action="ChangeRole" class="btn btn-warning me-2">
+                    Изменить роль
+                </a>
+            }
+
             <a asp-controller="Cart" asp-action="Index" class="btn btn-outline-secondary">Корзина</a>
             <a asp-controller="Users" asp-action="Login" class="btn btn-outline-primary ms-2">Войти</a>
+
         </div>
     </div>
 
